@@ -1,0 +1,119 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "0001",
+        "nombre": "Proyecto Residencial San Martín",
+        "estado": "terminada",
+        "responsable": "Ing. Juan Pérez",
+        "telefono": "5491112345678",
+        "email": "info@constructora.com",
+        "archivos": {
+          "legal": ["LEGE_001.pdf", "LEGD_001.pdf"],
+          "agrimensura": ["AGRM_001.pdf"],
+          "topografia": ["TOPR_001.dwg", "TOPN_001.pdf"],
+          "obra_docs": ["DOCM_001.pdf", "DOCE_001.pdf"],
+          "fotos": ["FOTT_001.jpeg", "FOTT_002.jpeg", "FOTA_001.jpeg"]
+        }
+      },
+      "geometry": { "type": "Point", "coordinates": [-58.53, -34.57] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "0002",
+        "nombre": "Complejo Industrial Pilar",
+        "estado": "ejecucion",
+        "responsable": "Arq. María García",
+        "telefono": "5491198765432",
+        "email": "mgarcia@constructora.com",
+        "archivos": {
+          "legal": ["LEGE_002.pdf"],
+          "agrimensura": ["AGRM_002.pdf", "AGRP_002.pdf"],
+          "topografia": ["TOPR_002.dwg"],
+          "obra_docs": ["DOCE_002.pdf", "DOCI_002.pdf"],
+          "fotos": ["FOTA_002.jpeg", "FOTT_003.jpeg"]
+        }
+      },
+      "geometry": { "type": "Point", "coordinates": [-58.91, -34.45] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "0003",
+        "nombre": "Torre Administrativa La Plata",
+        "estado": "proyectada",
+        "responsable": "Ing. Carlos Sosa",
+        "telefono": "5492215554433",
+        "email": "csosa@constructora.com",
+        "archivos": {
+          "legal": ["LEGD_003.pdf", "LEGC_003.pdf"],
+          "agrimensura": ["AGRM_003.pdf"],
+          "topografia": ["TOPN_003.pdf", "TOPM_003.dwg"],
+          "obra_docs": ["DOCM_003.pdf"],
+          "fotos": ["FOTT_005.jpeg"]
+        }
+      },
+      "geometry": { "type": "Point", "coordinates": [-57.95, -34.92] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "0004",
+        "nombre": "Barrio Náutico Tigre",
+        "estado": "ejecucion",
+        "responsable": "Arq. Luis Méndez",
+        "telefono": "5491144332211",
+        "email": "lmendez@constructora.com",
+        "archivos": {
+          "legal": ["LEGE_004.pdf"],
+          "agrimensura": ["AGRM_004.pdf", "AGRC_004.pdf"],
+          "topografia": ["TOPR_004.dwg"],
+          "obra_docs": ["DOCE_004.pdf", "DOCI_004.pdf"],
+          "fotos": ["FOTA_004.jpeg", "FOTA_005.jpeg"]
+        }
+      },
+      "geometry": { "type": "Point", "coordinates": [-58.58, -34.42] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "0005",
+        "nombre": "Edificio Costa Mar del Plata",
+        "estado": "terminada",
+        "responsable": "Ing. Roberto Gómez",
+        "telefono": "5492236667788",
+        "email": "rgomez@constructora.com",
+        "archivos": {
+          "legal": ["LEGE_005.pdf"],
+          "agrimensura": ["AGRP_005.pdf"],
+          "topografia": ["TOPR_005.dwg"],
+          "obra_docs": ["DOCM_005.pdf", "DOCE_005.pdf"],
+          "fotos": ["FOTT_010.jpeg", "FOTT_011.jpeg"]
+        }
+      },
+      "geometry": { "type": "Point", "coordinates": [-57.54, -38.00] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "0006",
+        "nombre": "Centro Logístico Tandil",
+        "estado": "proyectada",
+        "responsable": "Ing. Sofía Martínez",
+        "telefono": "5492494445566",
+        "email": "smartinez@constructora.com",
+        "archivos": {
+          "legal": ["LEGD_006.pdf"],
+          "agrimensura": ["AGRM_006.pdf"],
+          "topografia": ["TOPN_006.pdf"],
+          "obra_docs": ["DOCM_006.pdf"],
+          "fotos": []
+        }
+      },
+      "geometry": { "type": "Point", "coordinates": [-59.13, -37.32] }
+    }
+  ]
+}
