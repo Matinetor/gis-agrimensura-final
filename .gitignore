@@ -1,5 +1,9 @@
+# Ignorar carpetas de desarrollo
 .vscode
 .hintrc
+
+# Ignorar todo en config, PERO permitir los JSON necesarios
 src/config/*
-!src/config/default/*
 !src/config/data.json
+!src/config/preferences.json
+!src/config/default/data.json
