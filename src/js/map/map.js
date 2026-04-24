@@ -3057,6 +3057,150 @@ $("body").on("pluginLoad", function (event, plugin) {
       });
 
       mapa.setView([-34.6, -58.4], 12);
+      
+      // --- CARGA DE DATOS ---
+      // Llamamos a la función ACÁ MISMO, donde el mapa acaba de ser creado.
+      cargarDatosLocales();
+
+      function cargarDatosLocales() {
+        console.log("Cargando capas locales (ICP + Alumnos FIUBA)...");
+
+        const panelHTML = document.createElement('div');
+        panelHTML.id = "mi-panel-capas-local";
+        panelHTML.style.position = 'absolute';
+        panelHTML.style.bottom = '100px'; 
+        panelHTML.style.left = '10px';
+        panelHTML.style.zIndex = '9999';
+        panelHTML.style.backgroundColor = 'white';
+        panelHTML.style.padding = '15px';
+        panelHTML.style.borderRadius = '8px';
+        panelHTML.style.boxShadow = '0 4px 6px rgba(0,0,0,0.3)';
+        panelHTML.style.fontFamily = 'Arial, sans-serif';
+        
+        panelHTML.innerHTML = `
+            <h4 style="margin: 0 0 10px 0; font-size: 15px; font-weight: bold; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Capas de Investigación</h4>
+            <div style="margin-bottom: 8px;">
+                <input type="checkbox" id="chk-facultades" checked style="cursor: pointer;">
+                <label for="chk-facultades" style="cursor: pointer; font-size: 14px;">Facultades de Agrimensura</label>
+            </div>
+            <div style="margin-bottom: 8px;">
+                <input type="checkbox" id="chk-icp" style="cursor: pointer;">
+                <label for="chk-icp" style="cursor: pointer; font-size: 14px;">Índice ICP (Provincias)</label>
+            </div>
+            <div>
+                <input type="checkbox" id="chk-fiuba" checked style="cursor: pointer;">
+                <label for="chk-fiuba" style="cursor: pointer; font-size: 14px;">Alumnos en FIUBA</label>
+            </div>
+        `;
+        
+        document.getElementById('mapa').appendChild(panelHTML);
+        L.DomEvent.disableClickPropagation(panelHTML);
+
+        let capaFacultades, capaICP, capaAlumnosFIUBA;
+
+        // Función para definir colores de alumnos (puedes ajustar los rangos)
+        function getColorAlumnos(d) {
+            return d > 50  ? '#00441b' :
+                   d > 20  ? '#1b7837' :
+                   d > 10  ? '#5aae61' :
+                   d > 5   ? '#a6dba0' :
+                   d > 0   ? '#d9f0d3' :
+                             '#f7f7f7';
+        }
+
+        // Estilo para la capa de alumnos
+        function estiloAlumnos(feature) {
+            return {
+                fillColor: getColorAlumnos(feature.properties.FIUBA),
+                weight: 1,
+                opacity: 1,
+                color: 'white',
+                fillOpacity: 0.7
+            };
+        }
+
+// 1. CARGAR FACULTADES (Puntos)
+fetch('assets/layers/facultades.json')
+    .then(res => res.json())
+    .then(data => {
+        window.datosFacultadesGlobal = data.features;
+        
+        // Blindaje: esperamos a que el DOM esté listo y las funciones existan
+        const checkReady = setInterval(() => {
+            if (typeof window.activarBuscadorFacultades === "function" && document.getElementById("q-obras")) {
+                clearInterval(checkReady);
+                window.activarBuscadorFacultades();
+                console.log("✅ Buscador inicializado.");
+            }
+        }, 500);
+
+        capaFacultades = L.geoJson(data, {
+            pointToLayer: (f, l) => L.circleMarker(l, { radius: 8, fillColor: "#ff7800", color: "#000", weight: 1, fillOpacity: 0.8 }),
+            onEachFeature: function(feature, layer) {
+                layer.on('click', function(e) {
+                    L.DomEvent.stopPropagation(e);
+                    // Forzamos la ejecución de la sidebar
+                    if (typeof window.actualizarSidebarFacultad === "function") {
+                        window.actualizarSidebarFacultad(feature.properties);
+                    } else {
+                        console.error("❌ Sidebar no encontrada.");
+                    }
+                });
+            }
+        }).addTo(mapa);
+    })
+    .catch(err => console.error("❌ Error al cargar facultades:", err));
+
+        // 2. CARGAR PROVINCIAS (Se usa para ICP y para FIUBA)
+        fetch('assets/layers/prov_icp.json')
+            .then(res => res.json())
+            .then(data => {
+                // Capa ICP (la dejamos creada pero apagada por defecto)
+                capaICP = L.geoJson(data, {
+                    style: typeof estiloProvincia === "function" ? estiloProvincia : { color: '#2171b5', weight: 1 },
+                    onEachFeature: (f, l) => l.bindPopup(`<b>${f.properties.provincia}</b><br>Índice ICP: ${f.properties.ICP}`)
+                });
+
+                // Capa Alumnos FIUBA (la prendemos por defecto)
+                capaAlumnosFIUBA = L.geoJson(data, {
+                    style: estiloAlumnos,
+                    onEachFeature: (f, l) => {
+                        l.bindPopup(`<b>Provincia: ${f.properties.provincia}</b><br>Alumnos en FIUBA: ${f.properties.FIUBA}`);
+                    }
+                }).addTo(mapa);
+                
+                capaAlumnosFIUBA.bringToBack();
+            });
+
+        // Lógica de los botones
+        document.getElementById('chk-facultades').addEventListener('change', e => {
+            e.target.checked ? mapa.addLayer(capaFacultades) : mapa.removeLayer(capaFacultades);
+        });
+
+        document.getElementById('chk-icp').addEventListener('change', e => {
+            if (e.target.checked) {
+                mapa.addLayer(capaICP);
+                capaICP.bringToBack();
+                // Apagamos la otra capa de polígonos para que no se superpongan visualmente
+                document.getElementById('chk-fiuba').checked = false;
+                mapa.removeLayer(capaAlumnosFIUBA);
+            } else {
+                mapa.removeLayer(capaICP);
+            }
+        });
+
+        document.getElementById('chk-fiuba').addEventListener('change', e => {
+            if (e.target.checked) {
+                mapa.addLayer(capaAlumnosFIUBA);
+                capaAlumnosFIUBA.bringToBack();
+                // Apagamos ICP
+                document.getElementById('chk-icp').checked = false;
+                mapa.removeLayer(capaICP);
+            } else {
+                mapa.removeLayer(capaAlumnosFIUBA);
+            }
+        });
+    }
 
       //Available events
       mapa.methodsEvents = {
@@ -4163,264 +4307,126 @@ window.mostrarFicha = function(datos) {
     }
 };
 
-// Migración de WMS a GeoJSON
-// --- PEGAR EN map.js ---
-
-function cargarCapaObras(mapa) {
-  fetch('assets/layers/obras.json')
-      .then(response => response.json())
-      .then(data => {
-          
-          // Definimos los estilos de iconos
-          const getIconoPorEstado = (estado) => {
-              let colorFilter = ""; // Por defecto azul
-              
-              if (estado === 'terminada') colorFilter = "hue-rotate(240deg) brightness(0.8)"; // Verde (aprox)
-              if (estado === 'ejecucion') colorFilter = "hue-rotate(150deg)"; // Amarillo/Naranja
-              if (estado === 'proyectada') colorFilter = "hue-rotate(0deg) saturate(3)"; // Rojo intenso
-
-              // Usamos el marcador estándar pero le aplicamos filtro CSS en el html
-              return L.divIcon({
-                  className: 'custom-marker',
-                  html: `<img src="dist/vendor/css/images/marker-icon.png" style="filter: ${colorFilter}; width: 25px; height: 41px;">`,
-                  iconSize: [25, 41],
-                  iconAnchor: [12, 41],
-                  popupAnchor: [1, -34]
-              });
-          };
-
-          const capaObras = L.geoJSON(data, {
-              pointToLayer: function (feature, latlng) {
-                  const estado = feature.properties.estado || 'proyectada';
-                  return L.marker(latlng, { icon: getIconoPorEstado(estado) });
-              },
-              onEachFeature: function (feature, layer) {
-                  layer.on('click', function () {
-                      actualizarSidebarDinamica(feature.properties);
-                  });
-                  
-                  // Guardamos una referencia para el buscador (Parte 2)
-                  feature.properties._layer = layer; 
-              }
-          }).addTo(mapa);
-          
-          // Guardamos la capa globalmente para el buscador
-          window.capaObrasGlobal = capaObras; 
-          window.datosObrasGlobal = data.features; // Guardamos los datos crudos
-          // ACTIVAMOS EL BUSCADOR AHORA QUE TENEMOS DATOS
-          activarBuscadorObras();
-          console.log("✅ Capa de Obras cargada con estados");
-      })
-      .catch(error => console.error("Error cargando obras:", error));
+// --- ESTILOS PARA EL ÍNDICE ICP ---
+function getColorICP(d) {
+  return d > 1.2 ? '#084594' :
+         d > 1.0 ? '#2171b5' :
+         d > 0.8 ? '#4292c6' :
+         d > 0.6 ? '#6baed6' :
+         d > 0.4 ? '#9ecae1' :
+                   '#c6dbef';
 }
 
-function actualizarSidebarDinamica(prop) {
-  const id = prop.id || "0001";
-  const rutaBase = `assets/proyectos/${id}/`;
+function estiloProvincia(feature) {
+  return {
+    fillColor: getColorICP(feature.properties.ICP),
+    weight: 1.5,
+    opacity: 1,
+    color: 'white',
+    dashArray: '3',
+    fillOpacity: 0.7
+  };
+}
+// --- SIDEBAR DE FACULTADES (CORREGIDA) ---
+function actualizarSidebarFacultad(p) {
+  const sidebar = $("#contenido-ficha"); 
   
-  const docs = prop.archivos || {};
-  const fotos = docs.fotos || [];
-  const estado = prop.estado || "proyectada";
-  const coloresEstado = {
-      "terminada": { fondo: "#4CAF50", texto: "OBRA TERMINADA" },
-      "ejecucion": { fondo: "#FF9800", texto: "EN EJECUCIÓN" },
-      "proyectada": { fondo: "#F44336", texto: "PROYECTADA" }
-  };
-const configEstado = coloresEstado[estado] || coloresEstado["proyectada"];
-  // Si no hay teléfono, dejamos uno genérico
-  const telefono = prop.telefono || "5491100000000";
-  const email = prop.email || "info@constructora.com";
+  // 1. Normalización de datos para evitar errores
+  const id = p.id || "00";
+  const sigla = (p.nombre_cod || "default").toLowerCase();
+  
+  // 2. Definición de rutas (usando las variables 'id' y 'sigla' ya definidas)
+  const logoFacultad = `src/styles/images/facultades/${id}_${sigla}.png`;
+  
+  const logoComision = p.com_cod 
+      ? `src/styles/images/estudiantes/${id}_${sigla}.png` 
+      : 'src/styles/images/default_cea.png';
 
-  const contenedor = document.getElementById('contenido-ficha');
-  if (!contenedor) return;
-
-  // --- MAGIA: DETECTOR DE SUBCATEGORÍAS (Completo) ---
-  const detectarIcono = (nombreArchivo) => {
-    const prefijo = nombreArchivo.split('_')[0]; // Toma "LEGE", "FOTA", etc.
-    let datos = { icono: "fa-file-o", color: "#999", texto: "DOC" };
-
-    switch(prefijo) {
-        // 1. LEGALES (Violetas)
-        case 'LEGE': datos = { icono: "fa-university", color: "#9C27B0", texto: "ESCRIT" }; break;
-        case 'LEGD': datos = { icono: "fa-id-card",    color: "#BA68C8", texto: "DOCS" }; break;
-        case 'LEGI': datos = { icono: "fa-info-circle",color: "#E1BEE7", texto: "INFOR" }; break;
-        case 'LEGC': datos = { icono: "fa-handshake-o",color: "#7B1FA2", texto: "CONTRATO" }; break;
-
-        // 2. AGRIMENSURA (Verdes)
-        case 'AGRM': datos = { icono: "fa-map",        color: "#4CAF50", texto: "MENSURA" }; break;
-        case 'AGRP': datos = { icono: "fa-building-o", color: "#81C784", texto: "PH" }; break;
-        case 'AGRC': datos = { icono: "fa-certificate",color: "#388E3C", texto: "CERTIF" }; break;
-
-        // 3. TOPOGRAFÍA (Naranjas)
-        case 'TOPR': datos = { icono: "fa-globe",      color: "#FF9800", texto: "RELEV" }; break;
-        case 'TOPN': datos = { icono: "fa-area-chart", color: "#FFB74D", texto: "NIVEL" }; break;
-        case 'TOPM': datos = { icono: "fa-cube",       color: "#F57C00", texto: "3D-MDT" }; break;
-
-        // 4. OBRA (Rojos)
-        case 'DOCM': datos = { icono: "fa-gavel",      color: "#F44336", texto: "MUNI" }; break;
-        case 'DOCE': datos = { icono: "fa-cogs",       color: "#E57373", texto: "ESTRUC" }; break;
-        case 'DOCI': datos = { icono: "fa-bolt",       color: "#D32F2F", texto: "INSTAL" }; break;
-
-        // 5. FOTOS (Azules - Si aparecen en lista)
-        case 'FOTA': datos = { icono: "fa-plane",      color: "#2196F3", texto: "DRONE" }; break;
-        case 'FOTT': datos = { icono: "fa-camera",     color: "#64B5F6", texto: "FOTO" }; break;
-        case 'FOTD': datos = { icono: "fa-search-plus",color: "#1976D2", texto: "DETALLE" }; break;
-        
-        // DEFAULT (Por extensión)
-        default: 
-            if(nombreArchivo.includes('.dwg')) datos = { icono: "fa-pencil-square-o", color: "#333", texto: "CAD" };
-            else if(nombreArchivo.includes('.pdf')) datos = { icono: "fa-file-pdf-o", color: "#D32F2F", texto: "PDF" };
-            else if(nombreArchivo.includes('.xls')) datos = { icono: "fa-file-excel-o", color: "#2E7D32", texto: "EXCEL" };
-            else if(nombreArchivo.includes('.doc')) datos = { icono: "fa-file-word-o", color: "#1565C0", texto: "WORD" };
-    }
-    return datos;
-  };
-
-  // --- GENERADOR DE LISTA INTELIGENTE ---
-  const generarLista = (archivos, carpeta) => {
-      if (!archivos || archivos.length === 0) return '<div class="text-muted" style="padding:10px; font-size:12px; text-align:center;"><i>Carpeta vacía</i></div>';
+  // 3. Renderizado del template
+  let html = `
+  <div class="detalle-facultad d-flex flex-column align-items-center text-center" 
+       style="min-height: 100%; background-color: #ffffff; padding: 30px 20px; color: #1a252f; box-sizing: border-box;">
       
-      return archivos.map(archivo => {
-          const info = detectarIcono(archivo);
-          return `
-          <a href="${rutaBase}${carpeta}/${archivo}" target="_blank" class="list-group-item file-item">
-              <span class="file-badge" style="background-color: ${info.color};">
-                  ${info.texto}
-              </span>
-              <span style="flex:1;">
-                  <i class="fa ${info.icono}" style="color:${info.color}; margin-right:5px;"></i> ${archivo}
-              </span>
-              <i class="fa fa-external-link" style="color:#ccc; font-size:10px;"></i>
-          </a>`;
-      }).join('');
-  };
-
-  // --- CARRUSEL ---
-  let carouselHTML = '';
-  if (fotos.length > 0) {
-      // ... (Tu código de carrusel sigue igual, solo ajustamos el contenedor) ...
-      const items = fotos.map((foto, index) => `
-          <div class="item ${index === 0 ? 'active' : ''}">
-              <img src="${rutaBase}04_OBRA/${foto}" style="width:100%; height:220px; object-fit:cover; border-radius:12px;" onerror="this.src='src/styles/images/noimage.webp'">
-          </div>
-      `).join('');
-
-      carouselHTML = `
-          <div id="carousel-${id}" class="carousel slide" data-ride="carousel" style="box-shadow: 0 5px 15px rgba(0,0,0,0.2); border-radius:12px; overflow:hidden;">
-              <div class="carousel-inner">${items}</div>
-              <a class="left carousel-control" href="#carousel-${id}" data-slide="prev"><span class="glyphicon glyphicon-chevron-left"></span></a>
-              <a class="right carousel-control" href="#carousel-${id}" data-slide="next"><span class="glyphicon glyphicon-chevron-right"></span></a>
-          </div>
-      `;
-  }
-
-  // --- INYECCIÓN HTML ---
-  contenedor.innerHTML = `
-      <div class="tag-row">
-          <span class="mi-tag"><i class="fa fa-hashtag"></i> ID: ${id}</span>
-          <span class="mi-tag" style="background-color: ${configEstado.fondo}; color: white;">
-              <i class="fa fa-info-circle" style="color: white;"></i> ${configEstado.texto}
-          </span>
+      <div class="mb-4 w-100">
+        <img src="${logoFacultad}" 
+             onerror="this.style.display='none'" 
+             style="max-width: 140px; height: auto; filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.1));" 
+             class="img-fluid mb-3">
+        <h2 class="font-weight-bold m-0" style="font-size: 2rem; letter-spacing: 0.5px; color: #000;">${p.nombre_cod || ''}</h2>
+        <p class="mt-2 mb-0" style="font-size: 1.1rem; color: #555; line-height: 1.4; font-weight: 500;">${p.nombre || ''}</p>
       </div>
-      <div class="ficha-tecnica-container">
+      
+      <hr style="width: 100%; border-top: 2px solid #f1f1f1; margin: 25px 0;">
+      
+      <div class="info-academica w-100 mb-5 d-flex flex-column align-items-center justify-content-center" style="flex-grow: 1;">
+          <h4 class="text-uppercase font-weight-bold mb-3" style="color: #2c3e50; font-size: 1.2rem; letter-spacing: 1.2px;">Información Institucional</h4>
           
-          <div class="sidebar-header-styled" style="position: relative;">
-              <i class="fa fa-info-circle"></i> DETALLE DE OBRA
-              
-              <div onclick="$('#sidebar-right').addClass('collapsed')" 
-                  style="position: absolute; right: 15px; top: 0; bottom: 0; display: flex; align-items: center; cursor: pointer;">
-                  <i class="fa fa-times" style="color: white; font-size: 18px; opacity: 0.8;"></i>
-              </div>
-          </div>
-
-          <div class="obra-titulo-grande">${prop.nombre}</div>
-          <div class="obra-id-badge">ID OBRA: ${id}</div>
-
-          <p style="text-align:center; color:#777; margin-bottom:20px;">
-              <i class="fa fa-user"></i> Resp: <strong>${prop.responsable}</strong>
-          </p>
-
-          <div class="contact-row">
-              <a href="https://wa.me/${telefono}" target="_blank" class="btn-contact btn-whatsapp">
-                  <i class="fa fa-whatsapp"></i> WhatsApp
-              </a>
-              <a href="mailto:${email}" class="btn-contact btn-email">
-                  <i class="fa fa-envelope"></i> Email
+          <div class="mb-4">
+              <a href="${p.url_fac || '#'}" target="_blank" class="btn btn-link p-0" style="font-weight: 700; color: #007bff; text-decoration: underline; font-size: 1.1rem;">
+                  <i class="fas fa-external-link-alt"></i> Sitio Web Oficial
               </a>
           </div>
 
-          ${fotos.length > 0 ? carouselHTML : ''}
-
-          <div class="section-header-styled">
-              <i class="fa fa-folder-open"></i> Documentación Técnica
-          </div>
-          
-          <div class="panel-group" id="accordionDocs">
-              
-              <div class="panel panel-default">
-                  <div class="panel-heading cat-legal"><h4 class="panel-title"><a data-toggle="collapse" href="#colLeg">
-                      01 - Legal
-                  </a></h4></div>
-                  <div id="colLeg" class="panel-collapse collapse">
-                      <div class="list-group">${generarLista(docs.legal, '01_LEGAL')}</div>
-                  </div>
-              </div>
-
-              <div class="panel panel-default">
-                  <div class="panel-heading cat-agrim"><h4 class="panel-title"><a data-toggle="collapse" href="#colAgr">
-                      02 - Agrimensura
-                  </a></h4></div>
-                  <div id="colAgr" class="panel-collapse collapse">
-                      <div class="list-group">${generarLista(docs.agrimensura, '02_AGRIMENSURA')}</div>
-                  </div>
-              </div>
-
-              <div class="panel panel-default">
-                  <div class="panel-heading cat-topog"><h4 class="panel-title"><a data-toggle="collapse" href="#colTop">
-                      03 - Topografía
-                  </a></h4></div>
-                  <div id="colTop" class="panel-collapse collapse">
-                      <div class="list-group">${generarLista(docs.topografia, '03_TOPOGRAFIA')}</div>
-                  </div>
-              </div>
-
-              <div class="panel panel-default">
-                  <div class="panel-heading cat-obras"><h4 class="panel-title"><a data-toggle="collapse" href="#colDoc">
-                      04 - Documentación Obra
-                  </a></h4></div>
-                  <div id="colDoc" class="panel-collapse collapse">
-                      <div class="list-group">${generarLista(docs.obra_docs, '04_OBRA')}</div>
-                  </div>
-              </div>
-
+          <div class="px-2">
+              <p class="mb-1 text-uppercase text-muted" style="font-size: 0.85rem; font-weight: 700;">Comisión Estudiantil</p>
+              <p class="font-weight-bold m-0" style="font-size: 1.15rem; color: #333;">${p.comision || 'No disponible'}</p>
           </div>
       </div>
-  `;
 
-  // Activar UI
-  $('#sidebar-right').removeClass('collapsed');
-  $('#info-obra').addClass('active').siblings().removeClass('active');
-  if(fotos.length > 0) $(`#carousel-${id}`).carousel();
+      <div class="d-flex flex-column w-100 px-1" style="gap: 15px;">
+          ${p.url_pdf ? `
+              <a href="${p.url_pdf}" target="_blank" class="btn btn-success shadow d-flex align-items-center justify-content-center" 
+                 style="background-color: #1e7e34; border: none; padding: 15px 10px; border-radius: 8px; font-size: 1rem; font-weight: 700; text-transform: uppercase;">
+                  <i class="fas fa-file-pdf mr-3"></i> Descargar Datos Académicos
+              </a>
+          ` : `
+              <button class="btn btn-light text-muted border d-flex align-items-center justify-content-center" disabled style="padding: 15px 10px; font-size: 1rem;">
+                  <i class="fas fa-file-pdf mr-3"></i> PDF NO DISPONIBLE
+              </button>
+          `}
+          ${p.url_com ? `
+              <a href="${p.url_com}" target="_blank" class="btn btn-outline-danger shadow-sm d-flex align-items-center justify-content-center" 
+                 style="border: 2px solid #e4405f; color: #e4405f; padding: 15px 10px; border-radius: 8px; font-size: 1rem; font-weight: 700;">
+                  <i class="fab fa-instagram mr-3"></i> INSTAGRAM CEA
+              </a>
+          ` : ''}
+      </div>
+
+      <div class="mt-auto pt-5">
+        <img src="${logoComision}" 
+             onerror="this.style.display='none'" 
+             style="max-width: 100px; height: auto;">
+      </div>
+  </div>
+`;
+
+sidebar.html(html);
+
+// Forzamos el fondo blanco en los contenedores de Leaflet Sidebar
+$(".leaflet-sidebar-pane").css("background-color", "#ffffff");
+$(".leaflet-sidebar-content").css("background-color", "#ffffff");
+
+if (window.sidebarRight) {
+    window.sidebarRight.open('info-obra'); 
 }
-function activarBuscadorObras() {
-  console.log("🏗️ Inicializando Buscador Exclusivo de Obras...");
-
+}
+// --- BUSCADOR DE FACULTADES ---
+function activarBuscadorFacultades() {
   $("#q-obras").autocomplete({
       source: function(request, response) {
           const termino = request.term.toString().toLowerCase().trim();
           const resultados = [];
 
-          if (!window.datosObrasGlobal) return response([]);
+          if (!window.datosFacultadesGlobal) return response([]);
 
-          window.datosObrasGlobal.forEach(feature => {
+          window.datosFacultadesGlobal.forEach(feature => {
               const p = feature.properties;
-              const idStr = String(p.id || "").toLowerCase();
               const nombreStr = (p.nombre || "").toLowerCase();
-              const estadoStr = (p.estado || "").toUpperCase();
+              const codStr = (p.nombre_cod || "").toLowerCase();
 
-              if (idStr.includes(termino) || nombreStr.includes(termino)) {
+              if (nombreStr.includes(termino) || codStr.includes(termino)) {
                   resultados.push({
-                      label: `[${idStr}] ${p.nombre} (${estadoStr})`,
+                      label: `[${p.nombre_cod}] ${p.nombre}`,
                       value: p.nombre,
                       feature: feature
                   });
@@ -4432,15 +4438,8 @@ function activarBuscadorObras() {
       select: function(event, ui) {
           const f = ui.item.feature;
           const coords = f.geometry.coordinates;
-          
-          // Volar a la obra
-          window.mapa.flyTo([coords[1], coords[0]], 17, { duration: 1.2 });
-          
-          // Abrir ficha
-          actualizarSidebarDinamica(f.properties);
-          
-          // Limpiar buscador tras seleccionar (opcional)
-          setTimeout(() => { $(this).val(''); }, 100);
+          window.mapa.flyTo([coords[1], coords[0]], 16, { duration: 1.5 });
+          window.actualizarSidebarFacultad(f.properties);
       }
   });
 }

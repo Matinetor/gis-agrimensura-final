@@ -1749,3 +1749,17 @@ Special effects
 .individualFeature > ul > li > span {
   float: right;
 } */
+
+/* =========================================================
+   FIX DEFINITIVO: FONDO DE LA SIDEBAR BLANCO
+   ========================================================= */
+/* Sobrescribe la clase .active global solo para los paneles de la barra lateral */
+.leaflet-sidebar-pane.active,
+.leaflet-sidebar-content {
+    background-color: #ffffff !important;
+}
+
+/* Asegura que el área de los botones de pestañas también tenga un fondo coherente si se ve */
+.leaflet-sidebar {
+    background-color: #ffffff !important;
+}
